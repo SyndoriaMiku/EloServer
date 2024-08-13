@@ -9,6 +9,7 @@ from .serializers import PlayerSerializer, ResultSerializer, DrawSerializer
 from .elo import calculate_elo, draw_elo
 from django.db import models
 from django.db.models import Q
+from rest_framework.authtoken.models import Token
 
 
 
@@ -115,7 +116,8 @@ class LoginView(APIView):
         user = authenticate(username=username, password=password)
         if user is not None:
             #Successful login
-            return Response({'message' : 'Login successful'}, status=status.HTTP_200_OK)
+            token, created = Token.objects.get_or_create(user=user)
+            return Response({'token' : 'token.key'}, status=status.HTTP_200_OK)
         else:
             #Unsuccessful login
-            return Response({'error' : 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error' : 'Wrong username or password'}, status=status.HTTP_400_BAD_REQUEST)
