@@ -86,11 +86,10 @@ WSGI_APPLICATION = 'EloServer.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'Elo',
-        'USER': 'root',
-        'PASSWORD': '3012',
-        'HOST': '',
-        'PORT': '3360'
+        'NAME': 'syndoria$Elo',
+        'USER': 'syndoria',
+        'PASSWORD': 'phuyen666',
+        'HOST': 'syndoria.mysql.pythonanywhere-services.com',
     }
 }
 
