@@ -1,13 +1,14 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .match import finish_match
-from .models import Player, Match, Tournament
-from .serializers import PlayerSerializer, ResultSerializer, DrawSerializer, MatchSerializer
+from .models import Player, Match, Tournament, Stage
+from .serializers import PlayerSerializer, DrawSerializer, MatchSerializer, BulkMatchSerializer
 from .elo import calculate_elo, draw_elo
 from django.db import models
 from django.db.models import Q
@@ -33,7 +34,7 @@ class PlayerDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PlayerSerializer
     
 class MatchResultView(APIView):
-    def post(self, request, id):
+    def post(self, request):
         
         serializer = MatchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -42,11 +43,19 @@ class MatchResultView(APIView):
 
         player_a = Player.objects.get(id=data['player_a_id'])
         player_b = Player.objects.get(id=data['player_b_id'])
-        stage = data['stage_type']
         
         tournament = None
         if data.get('tournament_id'):
             tournament = Tournament.objects.get(id=data['tournament_id'])
+        
+        stage = Stage.objects.filter(tournament=tournament, stage_type=data['stage_type']).first()
+        if not stage:
+            # Auto-create stage for non-tournament matches
+            stage = Stage.objects.create(
+                tournament=tournament,
+                name=f"Casual {data['stage_type'].upper()}",
+                stage_type=data['stage_type']
+            )
             
         match = Match.objects.create(
             tournament=tournament,
@@ -57,7 +66,7 @@ class MatchResultView(APIView):
             player_b=player_b,
             game_wins_a=data['game_wins_a'],
             game_wins_b=data['game_wins_b'],
-            status='completed'
+            status='pending'
         )
         
         finish_match(match)
@@ -94,14 +103,15 @@ class DrawView(APIView):
             player1 = serializer.validated_data['p1']
             player2 = serializer.validated_data['p2']
 
+            if player1 == player2:
+                return Response({'error' : 'Duplicate ID'}, status=status.HTTP_400_BAD_REQUEST)
+
             try:
                 p1 = Player.objects.get(id=player1)
                 p2 = Player.objects.get(id=player2)
 
             except Player.DoesNotExist:
                 return Response({'error' : 'Player does not exist'}, status=status.HTTP_404_NOT_FOUND)
-            except p1 == p2:
-                return Response({'error' : 'Duplicate ID'}, status=status.HTTP_400_BAD_REQUEST)
 
             #Calculate new elo
             p1_elo, p2_elo = draw_elo(p1.elo, p2.elo)
@@ -127,7 +137,56 @@ class LoginView(APIView):
         if user is not None:
             #Successful login
             token, created = Token.objects.get_or_create(user=user)
-            return Response({'token' : 'token.key'}, status=status.HTTP_200_OK)
+            return Response({'token' : token.key}, status=status.HTTP_200_OK)
         else:
             #Unsuccessful login
             return Response({'error' : 'Wrong username or password'}, status=status.HTTP_400_BAD_REQUEST)
+        
+class BulkMatchView(APIView):
+    def post(self, request):
+        serializer = BulkMatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        tournament = None
+        if data.get('tournament_id'):
+            tournament = Tournament.objects.get(id=data['tournament_id'])
+        
+        stage = Stage.objects.filter(tournament=tournament, stage_type=data['stage_type']).first()
+        if not stage:
+            # Auto-create stage for non-tournament matches
+            stage = Stage.objects.create(
+                tournament=tournament,
+                name=f"Casual {data['stage_type'].upper()}",
+                stage_type=data['stage_type']
+            )
+        
+        created_matches = []
+        with transaction.atomic():
+            for item in data['matches']:
+                player_a = Player.objects.get(id=item['player_a_id'])
+                player_b = Player.objects.get(id=item['player_b_id'])
+                
+                has_result = item.get('game_wins_a', 0) > 0 or item.get('game_wins_b', 0) > 0
+                
+                match = Match.objects.create(
+                    tournament=tournament,
+                    stage=stage,
+                    round=item['round'],
+                    best_of=item['best_of'],
+                    player_a=player_a,
+                    player_b=player_b,
+                    game_wins_a=item.get('game_wins_a', 0),
+                    game_wins_b=item.get('game_wins_b', 0),
+                    status='pending'
+                )
+                
+                if has_result:
+                    finish_match(match)
+                
+                created_matches.append(match)
+                
+        return Response(
+            {'message' : f'{len(created_matches)} matches created successfully'},
+            status=status.HTTP_201_CREATED
+        )

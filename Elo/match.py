@@ -1,5 +1,5 @@
-from models import Match, Player, MatchLog
-from elo import calculate_elo, match_score
+from .models import Match, Player, MatchLog
+from .elo import calculate_elo, match_score
 
 def finish_match(match: Match):
     if match.status == 'completed':
@@ -40,7 +40,7 @@ def finish_match(match: Match):
         elo_b_before=elo_b_before,
         score_a=score_a,
         best_of=match.best_of,
-        stage_type=match.stage.type,
+        stage_type=match.stage.stage_type,
     )
     
     #Update player Elo ratings

@@ -2,8 +2,8 @@ from decimal import Decimal, getcontext
 
 getcontext().prec = 6  # Set precision for Decimal calculations
 
-def expected_score(raing_a, rating_b):
-    exp_a = Decimal(1) / (Decimal(1) + Decimal(10) ** ((Decimal(rating_b) - Decimal(raing_a)) / Decimal(400)))
+def expected_score(rating_a, rating_b):
+    exp_a = Decimal(1) / (Decimal(1) + Decimal(10) ** ((Decimal(rating_b) - Decimal(rating_a)) / Decimal(400)))
     return exp_a
 
 def match_score(game_wins_a, game_wins_b, best_of):

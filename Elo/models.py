@@ -7,6 +7,7 @@ class Player(models.Model):
     id = models.IntegerField(primary_key=True)
     name = models.CharField(max_length=255)
     elo = models.DecimalField(default=500.0, decimal_places=1, max_digits=6)
+    point = models.IntegerField(default=0)
     
     def __str__(self):
         return self.name
@@ -34,6 +35,8 @@ class Stage(models.Model):
     ]
     tournament = models.ForeignKey(
         Tournament,
+        null=True,
+        blank=True,
         on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
     stage_type = models.CharField(max_length=2, choices=STAGE_TYPES)
@@ -54,13 +57,18 @@ class Match(models.Model):
     player_a = models.ForeignKey(Player, related_name='player_a', on_delete=models.CASCADE)
     player_b = models.ForeignKey(Player, related_name='player_b', on_delete=models.CASCADE)
     
-    score_a = models.IntegerField()
-    score_b = models.IntegerField()
-    
     best_of = models.IntegerField(choices=[(1, 'BO1'), (3, 'BO3'), (5, 'BO5')], default=3)
     
     game_wins_a = models.IntegerField(default=0)
     game_wins_b = models.IntegerField(default=0)
+    
+    @property
+    def score_a(self):
+        return self.game_wins_a
+    
+    @property
+    def score_b(self):
+        return self.game_wins_b
     
     winner = models.ForeignKey(
         Player,
