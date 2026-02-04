@@ -4,8 +4,10 @@ from django.contrib.auth import authenticate
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import Player
-from .serializers import PlayerSerializer, ResultSerializer, DrawSerializer
+
+from .match import finish_match
+from .models import Player, Match, Tournament
+from .serializers import PlayerSerializer, ResultSerializer, DrawSerializer, MatchSerializer
 from .elo import calculate_elo, draw_elo
 from django.db import models
 from django.db.models import Q
@@ -30,34 +32,42 @@ class PlayerDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Player.objects.all()
     serializer_class = PlayerSerializer
     
-class ResultView(APIView):
-    def post(self, request):
-        serializer = ResultSerializer(data=request.data)
-        if serializer.is_valid():
-            winner = serializer.validated_data['winner']
-            loser = serializer.validated_data['loser']
-            
-            try:
-                winner = Player.objects.get(id=winner)
-                loser = Player.objects.get(id=loser)
-            except Player.DoesNotExist:
-                return Response({'error' : 'Player does not exist'}, status=status.HTTP_404_NOT_FOUND)
-            except winner == loser:
-                return Response({'error' : 'Duplicate ID'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            #Calculate new elo
-            winner_elo, loser_elo = calculate_elo(winner.elo, loser.elo)
-            
-            #Update elo in database
-            winner.elo = winner_elo
-            loser.elo = loser_elo
-            winner.save()
-            loser.save()
-            
-            return Response({'message' : 'Elo updated'}, status=status.HTTP_200_OK)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class MatchResultView(APIView):
+    def post(self, request, id):
+        
+        serializer = MatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
+        data = serializer.validated_data
+
+        player_a = Player.objects.get(id=data['player_a_id'])
+        player_b = Player.objects.get(id=data['player_b_id'])
+        stage = data['stage_type']
+        
+        tournament = None
+        if data.get('tournament_id'):
+            tournament = Tournament.objects.get(id=data['tournament_id'])
+            
+        match = Match.objects.create(
+            tournament=tournament,
+            stage=stage,
+            round=data['round'],
+            best_of=data['best_of'],
+            player_a=player_a,
+            player_b=player_b,
+            game_wins_a=data['game_wins_a'],
+            game_wins_b=data['game_wins_b'],
+            status='completed'
+        )
+        
+        finish_match(match)
+        
+        return Response(
+            {'message' : 'Match result processed successfully'},
+            status=status.HTTP_201_CREATED
+        )
+           
+    
 class GetNewIDView(APIView):
     def get(self, request):
         max_id = Player.objects.all().aggregate(models.Max('id'))['id__max']
