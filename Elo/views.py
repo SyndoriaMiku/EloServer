@@ -5,6 +5,8 @@ from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.authentication import TokenAuthentication
 
 from .match import finish_match
 from .models import Player, Match, Tournament, Stage
@@ -34,6 +36,9 @@ class PlayerDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PlayerSerializer
     
 class MatchResultView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminUser]
+    
     def post(self, request):
         
         serializer = MatchSerializer(data=request.data)
@@ -97,6 +102,9 @@ class PlayerFilterView(generics.ListAPIView):
         return players
         
 class DrawView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminUser]
+    
     def post(self, request):
         serializer = DrawSerializer(data=request.data)
         if serializer.is_valid():
@@ -143,6 +151,9 @@ class LoginView(APIView):
             return Response({'error' : 'Wrong username or password'}, status=status.HTTP_400_BAD_REQUEST)
         
 class BulkMatchView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminUser]
+    
     def post(self, request):
         serializer = BulkMatchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
