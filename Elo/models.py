@@ -54,8 +54,8 @@ class Match(models.Model):
         Stage,
         on_delete=models.CASCADE)
     
-    player_a = models.ForeignKey(Player, related_name='player_a', on_delete=models.CASCADE)
-    player_b = models.ForeignKey(Player, related_name='player_b', on_delete=models.CASCADE)
+    player_a = models.ForeignKey(Player, related_name='player_a', null=True, blank=True, on_delete=models.SET_NULL)
+    player_b = models.ForeignKey(Player, related_name='player_b', null=True, blank=True, on_delete=models.SET_NULL)
     
     best_of = models.IntegerField(choices=[(1, 'BO1'), (3, 'BO3'), (5, 'BO5')], default=3)
     
@@ -99,11 +99,13 @@ class MatchLog(models.Model):
     player_a = models.ForeignKey(
         Player,
         related_name='log_player_a',
-        on_delete=models.CASCADE)
+        null=True, blank=True,
+        on_delete=models.SET_NULL)
     player_b = models.ForeignKey(
         Player,
         related_name='log_player_b',
-        on_delete=models.CASCADE)
+        null=True, blank=True,
+        on_delete=models.SET_NULL)
     
     elo_a_before = models.DecimalField(decimal_places=1, max_digits=6)
     elo_b_before = models.DecimalField(decimal_places=1, max_digits=6)

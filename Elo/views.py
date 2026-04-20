@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,11 +25,14 @@ class PlayerList(generics.ListCreateAPIView):
     serializer_class = PlayerSerializer
     
     def create(self, request, *args, **kwargs):
-        player_id = request.data['id']
-        if Player.objects.filter(id=player_id).exists():
+        player_id = request.data.get('id')
+        if player_id is not None and Player.objects.filter(id=player_id).exists():
             return Response({'error' : 'Player already exists'}, status=status.HTTP_400_BAD_REQUEST)
-        response = super().create(request, *args, **kwargs)
-        return response
+        
+        try:
+            return super().create(request, *args, **kwargs)
+        except IntegrityError:
+            return Response({'error' : 'Player already exists (IntegrityError)'}, status=status.HTTP_400_BAD_REQUEST)
     
 class PlayerDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Player.objects.all()
@@ -46,12 +49,18 @@ class MatchResultView(APIView):
 
         data = serializer.validated_data
 
-        player_a = Player.objects.get(id=data['player_a_id'])
-        player_b = Player.objects.get(id=data['player_b_id'])
+        try:
+            player_a = Player.objects.get(id=data['player_a_id'])
+            player_b = Player.objects.get(id=data['player_b_id'])
+        except Player.DoesNotExist:
+            return Response({'error': 'One or both players do not exist'}, status=status.HTTP_400_BAD_REQUEST)
         
         tournament = None
         if data.get('tournament_id'):
-            tournament = Tournament.objects.get(id=data['tournament_id'])
+            try:
+                tournament = Tournament.objects.get(id=data['tournament_id'])
+            except Tournament.DoesNotExist:
+                return Response({'error': 'Tournament does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         
         stage = Stage.objects.filter(tournament=tournament, stage_type=data['stage_type']).first()
         if not stage:
@@ -62,19 +71,23 @@ class MatchResultView(APIView):
                 stage_type=data['stage_type']
             )
             
-        match = Match.objects.create(
-            tournament=tournament,
-            stage=stage,
-            round=data['round'],
-            best_of=data['best_of'],
-            player_a=player_a,
-            player_b=player_b,
-            game_wins_a=data['game_wins_a'],
-            game_wins_b=data['game_wins_b'],
-            status='pending'
-        )
+        has_result = data.get('game_wins_a', 0) > 0 or data.get('game_wins_b', 0) > 0
         
-        finish_match(match)
+        with transaction.atomic():
+            match = Match.objects.create(
+                tournament=tournament,
+                stage=stage,
+                round=data['round'],
+                best_of=data['best_of'],
+                player_a=player_a,
+                player_b=player_b,
+                game_wins_a=data['game_wins_a'],
+                game_wins_b=data['game_wins_b'],
+                status='pending'
+            )
+            
+            if has_result:
+                finish_match(match)
         
         return Response(
             {'message' : 'Match result processed successfully'},
@@ -161,7 +174,10 @@ class BulkMatchView(APIView):
         data = serializer.validated_data
         tournament = None
         if data.get('tournament_id'):
-            tournament = Tournament.objects.get(id=data['tournament_id'])
+            try:
+                tournament = Tournament.objects.get(id=data['tournament_id'])
+            except Tournament.DoesNotExist:
+                return Response({'error': 'Tournament does not exist'}, status=status.HTTP_400_BAD_REQUEST)
         
         stage = Stage.objects.filter(tournament=tournament, stage_type=data['stage_type']).first()
         if not stage:
@@ -172,9 +188,21 @@ class BulkMatchView(APIView):
                 stage_type=data['stage_type']
             )
         
+        player_ids = set()
+        for item in data['matches']:
+            player_ids.add(item['player_a_id'])
+            player_ids.add(item['player_b_id'])
+            
+        existing_players = Player.objects.filter(id__in=player_ids)
+        if existing_players.count() != len(player_ids):
+            return Response({'error': 'One or more players do not exist'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        players_dict = {p.id: p for p in existing_players}
+        
         created_matches = []
         with transaction.atomic():
             for item in data['matches']:
+                # Ensure we refetch the player inside the loop so updated elos from previous matches in the same bulk request are reflected
                 player_a = Player.objects.get(id=item['player_a_id'])
                 player_b = Player.objects.get(id=item['player_b_id'])
                 
