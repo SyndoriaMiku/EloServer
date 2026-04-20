@@ -8,6 +8,7 @@ class Player(models.Model):
     name = models.CharField(max_length=255)
     elo = models.DecimalField(default=500.0, decimal_places=1, max_digits=6)
     point = models.IntegerField(default=0)
+    elo_updated_at = models.DateTimeField(auto_now=True)
     
     def __str__(self):
         return self.name

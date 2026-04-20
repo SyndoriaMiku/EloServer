@@ -229,3 +229,31 @@ class BulkMatchView(APIView):
             {'message' : f'{len(created_matches)} matches created successfully'},
             status=status.HTTP_201_CREATED
         )
+
+class PlayerEditView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, pk):
+        try:
+            player = Player.objects.get(id=pk)
+        except Player.DoesNotExist:
+            return Response({'error': 'Player does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PlayerSerializer(player, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request, pk):
+        try:
+            player = Player.objects.get(id=pk)
+        except Player.DoesNotExist:
+            return Response({'error': 'Player does not exist'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PlayerSerializer(player, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

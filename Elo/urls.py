@@ -10,5 +10,5 @@ urlpatterns = [
     path('login/', Elo.views.LoginView.as_view(), name='login'),
     path('new/', Elo.views.GetNewIDView.as_view(), name='new'),
     path('filterPlayers/', Elo.views.PlayerFilterView.as_view(), name='filter-players'), 
+    path('editPlayer/<int:pk>/', Elo.views.PlayerEditView.as_view(), name='edit-player'),
 ]
-
