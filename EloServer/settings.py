@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-8!u-bhbuyi2ya=e3m5-qh=z*&nb)-ej(gpwyepat$qq6l&52^w
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [syndoria.pythonanywhere.com]
+ALLOWED_HOSTS = ['syndoria.pythonanywhere.com']
 
 
 # Application definition
@@ -40,10 +40,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework.authtoken',
-    
+
     #Local App
     'Elo',
-    
+
     #Plugin App
     'corsheaders'
 ]
@@ -114,12 +114,8 @@ AUTH_PASSWORD_VALIDATORS = [
 
 #Authentication DRF
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': (),
+    'DEFAULT_PERMISSION_CLASSES': (),
 }
 
 # Internationalization
