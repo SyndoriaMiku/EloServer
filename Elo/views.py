@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.authentication import TokenAuthentication
+from rest_framework.pagination import PageNumberPagination
 
 from .match import finish_match
 from .models import Player, Match, Tournament, Stage
@@ -23,8 +24,14 @@ from rest_framework.authtoken.models import Token
 from datetime import timedelta
 from django.utils import timezone
 
+class PlayerPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
 class PlayerList(generics.ListCreateAPIView):
     serializer_class = PlayerSerializer
+    pagination_class = PlayerPagination
 
     def get_queryset(self):
         queryset = Player.objects.all()
