@@ -47,6 +47,13 @@ class PlayerList(generics.ListCreateAPIView):
             except ValueError:
                 pass
 
+        # Sorting filter
+        sort = self.request.query_params.get('sort')
+        if sort == 'low':
+            queryset = queryset.order_by('elo')
+        elif sort == 'high':
+            queryset = queryset.order_by('-elo')
+
         return queryset
 
     def create(self, request, *args, **kwargs):
