@@ -2,9 +2,12 @@ from rest_framework import serializers
 from .models import Player, Match, Tournament, Stage, MatchLog
 
 class PlayerSerializer(serializers.ModelSerializer):
+    current_ranking = serializers.ReadOnlyField()
+    ranking_delta = serializers.ReadOnlyField()
+
     class Meta:
         model = Player
-        fields = '__all__'
+        fields = ['id', 'name', 'elo', 'point', 'elo_updated_at', 'last_week_ranking', 'current_ranking', 'ranking_delta']
 
 class ResultSerializer(serializers.Serializer):
     winner = serializers.IntegerField()

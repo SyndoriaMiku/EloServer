@@ -20,9 +20,34 @@ from rest_framework.authtoken.models import Token
 
 # Create your views here.
 
+from datetime import timedelta
+from django.utils import timezone
+
 class PlayerList(generics.ListCreateAPIView):
-    queryset = Player.objects.all()
     serializer_class = PlayerSerializer
+
+    def get_queryset(self):
+        queryset = Player.objects.all()
+
+        # Elo filters
+        min_elo = self.request.query_params.get('min_elo')
+        max_elo = self.request.query_params.get('max_elo')
+        if min_elo is not None:
+            queryset = queryset.filter(elo__gte=min_elo)
+        if max_elo is not None:
+            queryset = queryset.filter(elo__lte=max_elo)
+
+        # Time filter
+        updated_within_days = self.request.query_params.get('updated_within_days')
+        if updated_within_days is not None:
+            try:
+                days = int(updated_within_days)
+                time_threshold = timezone.now() - timedelta(days=days)
+                queryset = queryset.filter(elo_updated_at__gte=time_threshold)
+            except ValueError:
+                pass
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         player_id = request.data.get('id')

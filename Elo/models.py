@@ -9,7 +9,23 @@ class Player(models.Model):
     elo = models.DecimalField(default=500.0, decimal_places=1, max_digits=6)
     point = models.IntegerField(default=0)
     elo_updated_at = models.DateTimeField(auto_now=True)
+    last_week_ranking = models.IntegerField(null=True, blank=True)
     
+    class Meta:
+        ordering = ['-elo']
+
+    @property
+    def current_ranking(self):
+        # Calculate current ranking (1-based)
+        return Player.objects.filter(elo__gt=self.elo).count() + 1
+        
+    @property
+    def ranking_delta(self):
+        if self.last_week_ranking is None:
+            return 0
+        # Positive value means improved ranking (e.g., 5th -> 3rd = +2)
+        return self.last_week_ranking - self.current_ranking
+
     def __str__(self):
         return self.name
 
